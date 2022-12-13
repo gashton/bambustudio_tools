@@ -17,8 +17,9 @@ PRINTER_DEV_NAME="3DP-000-000" # Set this to the device name
 PRINTER_DEV_SIGNAL="-44" # Good Signal (Artificial), WiFi icon in BambuStudio will appear green with full-bars.
 PRINTER_DEV_CONNECT="lan" # LAN Mode
 PRINTER_DEV_BIND="free" # Not bound to a Cloud user-account.
+CONFIG_FILE="$(dirname "$0")/config.env"
 
-[[ -r $(dirname $0)/config.env ]] && source config.env
+[[ -r "${CONFIG_FILE}" ]] && source "${CONFIG_FILE}"
 [[ -z ${PRINTER_IP} ]] && echo -e "Please specify your printers IP.\nusage: \e[1m$0\e[0m <PRINTER_IP>" && exit 2
 [[ -z $(pgrep bambu-studio) ]] && echo "Please start BambuStudio" && exit 1
 
