@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim:ts=4:sw=4:sts=4:et:ai:fdm=marker
 #
 # Send the IP address of your BambuLab printer to port 2021/udp, which BambuStudio is listens on.
 #
@@ -9,21 +10,72 @@
 #
 # Author(s): gashton <https://github.com/gashton>
 #
-TARGET_IP="127.0.0.1" # IP address of your PC running BambuStudio.
-PRINTER_IP=$1 # IP address of your BambuLab Printer
-PRINTER_USN="000000000000000" # Printer Serial Number
-PRINTER_DEV_MODEL="3DPrinter-X1-Carbon" # Set this to your model.
-PRINTER_DEV_NAME="3DP-000-000" # Set this to the device name
-PRINTER_DEV_SIGNAL="-44" # Good Signal (Artificial), WiFi icon in BambuStudio will appear green with full-bars.
-PRINTER_DEV_CONNECT="lan" # LAN Mode
-PRINTER_DEV_BIND="free" # Not bound to a Cloud user-account.
+# Additions for portability and flexibility with moving settings out of the script and to the named config file
+#  - Roy Sigurd Karlsbakk <https://github.com/rkarlsba>
+#
+
 CONFIG_FILE="$(dirname "$0")/config.env"
+DEBUG=0
+
+# Very verbose and clear and all, can be shorted down, but I like it when it's clear (RSK)
+case $( uname -s ) in
+    Linux)
+        USE_ANSI_COLOURS=1
+        BAMBU_STUDIO_PID=$( pgrep bambu-studio )
+        ;;
+    Darwin)
+        BAMBU_STUDIO_PID=$( pgrep BambuStudio )
+        ;;
+    *)
+        USE_ANSI_COLOURS=0
+        BAMBU_STUDIO_PID=$( pgrep bambu-studio )
+        ORCA_SLICER_PID=$( pgrep OrcaSlicer )
+        ;;
+esac
+
+if [[ $USE_ANSI_COLOURS -gt 0 ]]
+then
+    please_specify_printer_ip="Please specify your printers IP.\nusage: \e[1m$0\e[0m <PRINTER_IP>"
+else
+    please_specify_printer_ip="Please specify your printers IP.\nusage: $0 <PRINTER_IP>"
+fi
 
 [[ -r "${CONFIG_FILE}" ]] && source "${CONFIG_FILE}"
-[[ -z ${PRINTER_IP} ]] && echo -e "Please specify your printers IP.\nusage: \e[1m$0\e[0m <PRINTER_IP>" && exit 2
-[[ -z $(pgrep bambu-studio) ]] && echo "Please start BambuStudio" && exit 1
+if [[ -z ${PRINTER_IP} ]]
+then
+    if [[ ! -z ${1} ]]
+    then
+        PRINTER_IP=$1
+    else
+        printf "$please_specify_printer_ip"
+        exit 2
+    fi
+fi
+[[ -z "${BAMBU_STUDIO_PID}" -a -z "${ORCA_SLICER_PID}" ]] && echo "Please start BambuStudio" && exit 1
 
 # Tested with openbsd-netcat
 [[ -z $(type -p nc) ]] && echo "ERROR: Please install netcat" && exit 2
 
-echo -e -n "HTTP/1.1 200 OK\r\nServer: Buildroot/2018.02-rc3 UPnP/1.0 ssdpd/1.8\r\nDate: $(date)\r\nLocation: ${PRINTER_IP}\r\nST: urn:bambulab-com:device:3dprinter:1\r\nEXT:\r\nUSN: ${PRINTER_USN}\r\nCache-Control: max-age=1800\r\nDevModel.bambu.com: ${PRINTER_DEV_MODEL}\r\nDevName.bambu.com: ${PRINTER_DEV_NAME}\r\nDevSignal.bambu.com: ${PRINTER_DEV_SIGNAL}\r\nDevConnect.bambu.com: ${PRINTER_DEV_CONNECT}\r\nDevBind.bambu.com: ${PRINTER_DEV_BIND}\r\n\r\n" | nc -u -w0 ${TARGET_IP} 2021
+http_chatter="HTTP/1.1 200 OK\r\n"
+http_chatter+="Server: Buildroot/2018.02-rc3 UPnP/1.0 ssdpd/1.8\r\n"
+http_chatter+="Server: Buildroot/2018.02-rc3 UPnP/1.0 ssdpd/1.8\r\n"
+http_chatter+="Date: $(date)\r\n"
+http_chatter+="Location: ${PRINTER_IP}\r\n"
+http_chatter+="ST: urn:bambulab-com:device:3dprinter:1\r\n"
+http_chatter+="EXT:\r\nUSN: ${PRINTER_USN}\r\n"
+http_chatter+="Cache-Control: max-age=1800\r\n"
+http_chatter+="DevModel.bambu.com: ${PRINTER_DEV_MODEL}\r\n"
+http_chatter+="DevName.bambu.com: ${PRINTER_DEV_NAME}\r\n"
+http_chatter+="DevSignal.bambu.com: ${PRINTER_DEV_SIGNAL}\r\n"
+http_chatter+="DevConnect.bambu.com: ${PRINTER_DEV_CONNECT}\r\n"
+http_chatter+="DevBind.bambu.com: ${PRINTER_DEV_BIND}\r\n"
+http_chatter+="\r\n"
+http_chatter+="" | nc -u -w0 ${TARGET_IP} 2021
+
+if [[ $DEBUG -gt 0 ]]
+then
+    printf "$http_chatter"
+    exit 0
+fi
+
+printf "$http_chatter" | nc -u -w0 ${TARGET_IP} 2021
