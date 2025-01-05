@@ -21,7 +21,7 @@ CONFIG_FILE="$(dirname "$0")/config.env"
 
 [[ -r "${CONFIG_FILE}" ]] && source "${CONFIG_FILE}"
 [[ -z ${PRINTER_IP} ]] && echo -e "Please specify your printers IP.\nusage: \e[1m$0\e[0m <PRINTER_IP>" && exit 2
-[[ -z $(pgrep bambu-studio) ]] && echo "Please start BambuStudio" && exit 1
+[[ -z $(pgrep -f bambu-studio) && -z $(pgrep -f "Bambu Studio") ]] && echo "Please start BambuStudio" && exit 1
 
 # Tested with openbsd-netcat
 [[ -z $(type -p nc) ]] && echo "ERROR: Please install netcat" && exit 2
